@@ -1,5 +1,0 @@
-# The channels to build from: conda-forge, and this forge, so --skip-existing=all
-# sees what's published already. It overrides channel_sources in conda-forge's
-# variant config, which rattler-build won't combine with -c.
-channel_sources:
-  - conda-forge,https://prefix.dev/roaldarbol/rpix-forge

@@ -12,21 +12,23 @@ rattler-build = ">=0.77"
 # conda-forge's variant config (compilers, R versions, CRAN mirror), so the
 # packages are built like conda-forge's and match its R
 conda-forge-pinning = "*"
+python = ">=3.12"
 
-# The target channel appears in the publish tasks and variants/channels.yaml:
-# change it everywhere if you deploy somewhere other than
-# https://prefix.dev/roaldarbol/rpix-forge.
+# The target channel appears in every task below: change it everywhere if you
+# deploy somewhere other than https://prefix.dev/roaldarbol/rpix-forge.
 [tasks]
+# conda-forge's variant config, without its channel settings (see the script)
+variants = "python scripts/conda_forge_variants.py"
 # Build every recipe, skipping anything already published to the channel. Used
 # by the linux-64 CI job, which owns the noarch recipes (r-rpix, r-sess).
-build = "rattler-build build --recipe-dir recipes -m $CONDA_PREFIX/conda_build_config.yaml -m variants/channels.yaml --skip-existing=all --test=native"
+build = { cmd = "rattler-build build --recipe-dir recipes -m variants/conda_build_config.yaml -c https://prefix.dev/roaldarbol/rpix-forge -c conda-forge --skip-existing=all --test=native", depends-on = ["variants"] }
 # Platform-specific recipes only (r-jgd, which is compiled): used by the macOS
 # and Windows CI jobs, so the noarch packages aren't built several times.
-build-arch = "rattler-build build --recipe recipes/r-jgd -m $CONDA_PREFIX/conda_build_config.yaml -m variants/channels.yaml --skip-existing=all --test=native"
+build-arch = { cmd = "rattler-build build --recipe recipes/r-jgd -m variants/conda_build_config.yaml -c https://prefix.dev/roaldarbol/rpix-forge -c conda-forge --skip-existing=all --test=native", depends-on = ["variants"] }
 # Same as the build tasks, but also uploads what was built (rattler-build
 # publish = build + upload + index). Auth: OIDC trusted publishing in CI, or
 # `pixi auth login prefix.dev` / PREFIX_API_KEY locally.
-publish = "rattler-build publish --recipe-dir recipes --to https://prefix.dev/roaldarbol/rpix-forge -m $CONDA_PREFIX/conda_build_config.yaml -m variants/channels.yaml --skip-existing=all --test=native"
-publish-arch = "rattler-build publish --recipe recipes/r-jgd --to https://prefix.dev/roaldarbol/rpix-forge -m $CONDA_PREFIX/conda_build_config.yaml -m variants/channels.yaml --skip-existing=all --test=native"
+publish = { cmd = "rattler-build publish --recipe-dir recipes --to https://prefix.dev/roaldarbol/rpix-forge -m variants/conda_build_config.yaml -c https://prefix.dev/roaldarbol/rpix-forge -c conda-forge --skip-existing=all --test=native", depends-on = ["variants"] }
+publish-arch = { cmd = "rattler-build publish --recipe recipes/r-jgd --to https://prefix.dev/roaldarbol/rpix-forge -m variants/conda_build_config.yaml -c https://prefix.dev/roaldarbol/rpix-forge -c conda-forge --skip-existing=all --test=native", depends-on = ["variants"] }
 # A local build from conda-forge alone, e.g. before the channel exists
-build-local = "rattler-build build --recipe-dir recipes -m $CONDA_PREFIX/conda_build_config.yaml --test=native"
+build-local = { cmd = "rattler-build build --recipe-dir recipes -m variants/conda_build_config.yaml -c conda-forge --test=native", depends-on = ["variants"] }
