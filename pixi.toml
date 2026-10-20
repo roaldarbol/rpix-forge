@@ -1,0 +1,32 @@
+[workspace]
+authors = ["Mikkel Roald-Arbøl"]
+channels = ["conda-forge"]
+name = "rpix-forge"
+# Where the build tooling runs, not the set of published platforms (that's
+# decided by the recipes and CI).
+platforms = ["linux-64", "osx-arm64", "osx-64", "win-64"]
+version = "0.1.0"
+
+[dependencies]
+rattler-build = ">=0.77"
+# conda-forge's variant config (compilers, R versions, CRAN mirror), so the
+# packages are built like conda-forge's and match its R
+conda-forge-pinning = "*"
+
+# The target channel appears in the publish tasks and variants/channels.yaml:
+# change it everywhere if you deploy somewhere other than
+# https://prefix.dev/roaldarbol/rpix-forge.
+[tasks]
+# Build every recipe, skipping anything already published to the channel. Used
+# by the linux-64 CI job, which owns the noarch recipes (r-rpix, r-sess).
+build = "rattler-build build --recipe-dir recipes -m $CONDA_PREFIX/conda_build_config.yaml -m variants/channels.yaml --skip-existing=all --test=native"
+# Platform-specific recipes only (r-jgd, which is compiled): used by the macOS
+# and Windows CI jobs, so the noarch packages aren't built several times.
+build-arch = "rattler-build build --recipe recipes/r-jgd -m $CONDA_PREFIX/conda_build_config.yaml -m variants/channels.yaml --skip-existing=all --test=native"
+# Same as the build tasks, but also uploads what was built (rattler-build
+# publish = build + upload + index). Auth: OIDC trusted publishing in CI, or
+# `pixi auth login prefix.dev` / PREFIX_API_KEY locally.
+publish = "rattler-build publish --recipe-dir recipes --to https://prefix.dev/roaldarbol/rpix-forge -m $CONDA_PREFIX/conda_build_config.yaml -m variants/channels.yaml --skip-existing=all --test=native"
+publish-arch = "rattler-build publish --recipe recipes/r-jgd --to https://prefix.dev/roaldarbol/rpix-forge -m $CONDA_PREFIX/conda_build_config.yaml -m variants/channels.yaml --skip-existing=all --test=native"
+# A local build from conda-forge alone, e.g. before the channel exists
+build-local = "rattler-build build --recipe-dir recipes -m $CONDA_PREFIX/conda_build_config.yaml --test=native"

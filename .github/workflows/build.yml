@@ -1,0 +1,107 @@
+# One workflow for everything:
+#   - pull_request:      build whatever is not already on the channel (dry run, no upload)
+#   - push to main:      build + upload
+#   - workflow_dispatch: build + upload (use this to bootstrap an empty channel)
+#
+# There is no per-recipe matrix or change detection. Every run invokes
+# rattler-build over the recipes with --skip-existing=all: anything whose
+# version + build number is already published on the channel is skipped in
+# seconds.
+#
+# The linux-64 job builds all recipes (it owns the noarch ones, r-rpix and
+# r-sess); the macOS and Windows jobs only build the compiled one, r-jgd (see
+# `build-arch` in pixi.toml).
+name: Build
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build (${{ matrix.platform }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux-64
+            os: ubuntu-latest
+            build_task: build
+            publish_task: publish
+          - platform: osx-64
+            os: macos-15-intel
+            build_task: build-arch
+            publish_task: publish-arch
+          - platform: osx-arm64
+            os: macos-15
+            build_task: build-arch
+            publish_task: publish-arch
+          - platform: win-64
+            os: windows-latest
+            build_task: build-arch
+            publish_task: publish-arch
+
+    permissions:
+      # OIDC token for trusted publishing to prefix.dev
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: prefix-dev/setup-pixi@v0.10.2
+        with:
+          cache: true
+
+      # PRs only build; pushes to main and manual runs publish (build + upload
+      # + index in one rattler-build invocation, authenticated via OIDC).
+      - name: Build recipes (and publish on main)
+        run: pixi run ${{ github.event_name == 'pull_request' && matrix.build_task || matrix.publish_task }}
+
+      - name: Store packages as CI artifact
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: packages-${{ matrix.platform }}
+          path: output/**/*.conda
+          if-no-files-found: ignore
+
+  # End-to-end check of what is live on the channel: a pixi workspace as the
+  # README describes it, with conda-forge first and this channel second, on
+  # every platform.
+  smoke-test:
+    name: Smoke test (${{ matrix.platform }})
+    needs: build
+    if: github.event_name != 'pull_request'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux-64
+            os: ubuntu-latest
+          - platform: osx-64
+            os: macos-15-intel
+          - platform: osx-arm64
+            os: macos-15
+          - platform: win-64
+            os: windows-latest
+    steps:
+      - uses: prefix-dev/setup-pixi@v0.10.2
+        with:
+          run-install: false
+
+      - name: Install the packages from the channel and load them
+        shell: bash
+        run: |
+          pixi init smoke -c conda-forge -c https://prefix.dev/roaldarbol/rpix-forge
+          cd smoke
+          pixi add r-base r-rpix r-sess r-jgd
+          pixi run Rscript -e "library(rpix); library(sess); library(jgd); stopifnot(grepl('^git-tree:', packageDescription('sess')[['Config/vscode-R/source-revision']])); cat('all loaded\n')"
