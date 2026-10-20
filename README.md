@@ -22,7 +22,7 @@ these packages is on conda-forge, it comes from there.
 
 | Recipe | Version | Source | On conda-forge |
 | --- | --- | --- | --- |
-| `r-rpix` | 0.8.0 | [rpix](https://github.com/roaldarbol/rpix) tag `v0.8.0` | [staged-recipes#35133](https://github.com/conda-forge/staged-recipes/pull/35133) |
+| `r-rpix` | 0.9.0 | [rpix](https://github.com/roaldarbol/rpix) tag `v0.9.0` | [staged-recipes#35133](https://github.com/conda-forge/staged-recipes/pull/35133) |
 | `r-sess` | 3.2.0 | [vscode-R](https://github.com/REditorSupport/vscode-R) tag `v3.2.0`, `sess/` | [staged-recipes#35105](https://github.com/conda-forge/staged-recipes/pull/35105) |
 | `r-jgd` | 0.2.1 | CRAN | [staged-recipes#35104](https://github.com/conda-forge/staged-recipes/pull/35104) |
 
